@@ -27,15 +27,26 @@
  * @author	M�ximo Cuadros <mcuadros@gmail.com>
  */
 class tx_mcgooglesitemap_tt_content_tx_mcgooglesitemap_objective {
-	function main(&$params,&$pObj)	{
-		$show=array("tt","tx");
-		$res=mysql_query("SHOW TABLES;");
-		while ($row=mysql_fetch_array($res,MYSQL_NUM)) {
-			$tmp=explode("_",$row[0]);
-			if ( in_array($tmp[0],$show) && $tmp[count($tmp)-1] != "mm" ) {
-				$params["items"][]=Array($row[0], $row[0]);
+	/**
+	 * @param array $params
+	 * @param t3lib_TCEforms $pObj
+	 */
+	public function main(array &$params, t3lib_TCEforms $pObj) {
+		$show = array('tt', 'tx');
+		$tables = $this->getDatabaseConnection()->admin_get_tables();
+		foreach ($tables as $tableName => $tableData) {
+			$tmp = explode('_', $tableName);
+			if (in_array($tmp[0], $show) && $tmp[count($tmp) - 1] !== 'mm') {
+				$params['items'][] = array($tableName, $tableName);
 			}
 		}
+	}
+
+	/**
+	 * @return t3lib_DB
+	 */
+	protected function getDatabaseConnection() {
+		return $GLOBALS['TYPO3_DB'];
 	}
 }
 

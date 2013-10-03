@@ -87,9 +87,15 @@ class tx_mcgooglesitemap_base  {
 			$fix['priority']=$array['tx_mcgooglesitemap_priority'];
 			if ( strlen($fix['priority']) == 1 ) { $fix['priority'].=".0"; }
 		}
-		$sel=mysql_query("SELECT * FROM ".$array['tx_mcgooglesitemap_objective']." WHERE pid IN (".$array['pages'].") ".$this->cObj->enableFields($array['tx_mcgooglesitemap_objective']));
 
-		while ($row=mysql_fetch_array($sel,MYSQL_ASSOC)) {
+		$rows = $this->getDatabaseConnection()->exec_SELECTgetRows(
+			'*',
+			$array['tx_mcgooglesitemap_objective'],
+			'pid IN (' . $this->getDatabaseConnection()->cleanIntList($array['pages']) . ') '
+				. $this->cObj->enableFields($array['tx_mcgooglesitemap_objective'])
+		);
+
+		foreach ($rows as $row) {
 #if ( $i++ > 10 ) { exit(); }
 			$tema=array_merge($fix,$tema);
 			$tema['lastmod']=gmdate($this->dateFormat,$row['tstamp']);
@@ -145,24 +151,44 @@ class tx_mcgooglesitemap_base  {
 		}
 
 		$this->dateFormat='Y-m-d\TH:i:s\Z';
-		$res=mysql_query("SELECT tt_content.* FROM tt_content INNER JOIN pages ON pages.uid=tt_content.pid WHERE ( tt_content.menu_type='mc_googlesitemap_pi1' OR tt_content.menu_type='mc_googlesitemap_pi3' ) " . $getTree .$this->cObj->enableFields("pages")." ".$this->cObj->enableFields("tt_content"));
+
+		$res = $this->getDatabaseConnection()->exec_SELECTquery(
+			'tt_content.*',
+			'tt_content INNER JOIN pages ON pages.uid=tt_content.pid',
+			'(tt_content.menu_type="mc_googlesitemap_pi1" OR tt_content.menu_type="mc_googlesitemap_pi3") '
+				. $getTree . $this->cObj->enableFields('pages') . ' ' . $this->cObj->enableFields('tt_content')
+		);
 
 		//$res=mysql_query("SELECT tt_content.* FROM tt_content INNER JOIN pages ON pages.uid=tt_content.pid WHERE ( tt_content.menu_type='mc_googlesitemap_pi1' OR  tt_content.menu_type='mc_googlesitemap_pi3' ) " .$this->cObj->enableFields("pages")." ".$this->cObj->enableFields("tt_content"));
-		while($row=mysql_fetch_array($res)) {
+		while($row = $this->getDatabaseConnection()->sql_fetch_assoc($res)) {
 			$url= $this->cObj->typolink("",array("no_cache" => 0,"returnLast" => "url","parameter" => $row['pid'], "useCacheHash" => 0));
+
 			if ( $row['menu_type']=="mc_googlesitemap_pi1" ) {
-				$last=mysql_query("SELECT tstamp FROM ".$row['tx_mcgooglesitemap_objective']." WHERE pid IN (".$row['pages'].") ".$this->cObj->enableFields($row['tx_mcgooglesitemap_objective'])." ORDER BY tstamp DESC LIMIT 1");
+				$tableName = $row['tx_mcgooglesitemap_objective'];
 			} else {
-				$last=mysql_query("SELECT tstamp FROM pages  WHERE pid IN (".$row['pages'].") ".$this->cObj->enableFields("pages")." ORDER BY tstamp DESC LIMIT 1");
+				$tableName = 'pages';
 			}
-			$last=mysql_fetch_array($last);
+
+			$last = $this->getDatabaseConnection()->exec_SELECTgetSingleRow(
+				'tstamp',
+				$tableName,
+				'pid IN (' . $this->getDatabaseConnection()->cleanIntList($row['pages']) . ') '
+					. $this->cObj->enableFields($tableName),
+				'',
+				'tstamp DESC'
+			);
 
 			$linea[]= "\t<sitemap>";
 			$linea[]= "\t\t<loc>".$this->baseUrl.$url."</loc>";
-			$linea[]= "\t\t<lastmod>".gmdate('Y-m-d\TH:i:s\Z',$last[0])."</lastmod>";
+			$linea[]= "\t\t<lastmod>".gmdate('Y-m-d\TH:i:s\Z',$last['tstamp'])."</lastmod>";
 			$linea[]= "\t</sitemap>";
 			echo implodE("\n",$linea); unset($linea);
 		}
+
+		if ($res) {
+			$this->getDatabaseConnection()->sql_free_result($res);
+		}
+
 		echo "</sitemapindex>\n";
 		exit();
 	}
@@ -178,8 +204,14 @@ class tx_mcgooglesitemap_base  {
 		}
 
 		$tree=substr($tree, 0, strlen($tree)-1);
-		$sel=mysql_query("SELECT uid,pid,doktype,tx_mcgooglesitemap_priority AS prio,tx_mcgooglesitemap_changefreq AS freq FROM pages WHERE uid IN (".$tree.") ".$this->cObj->enableFields("pages"));
-		while ($row=mysql_fetch_array($sel,MYSQL_ASSOC)) {
+		$rows = $this->getDatabaseConnection()->exec_SELECTgetRows(
+			'uid,pid,doktype,tx_mcgooglesitemap_priority AS prio,tx_mcgooglesitemap_changefreq AS freq',
+			'pages',
+			'uid IN (' . $this->getDatabaseConnection()->cleanIntList($tree) . ') '
+				. $this->cObj->enableFields('pages')
+		);
+
+		foreach ($rows as $row) {
 			$pids[$row['uid']]=$row['pid'];
 			$prios[$row['uid']]=$row['prio'];
 			$freqs[$row['uid']]=$row['freq'];
@@ -191,12 +223,17 @@ class tx_mcgooglesitemap_base  {
 		$tree=implode(",",array_merge($pages,array_diff(explode(",",$tree),$anormal)));
 		if ( count($anormal) != 0 ) {
 			$anormal=implode(",",$anormal);
-			$anormalSql=" pid NOT IN (".$anormal.") AND ";
+			$anormalSql = ' pid NOT IN (' . $this->getDatabaseConnection()->cleanIntList($anormal) . ') AND ';
 		}
 
-		$sel=mysql_query("SELECT * FROM pages WHERE doktype IN(1,2) AND ".$anormalSql." uid IN (".$tree.") AND nav_hide=0 ".$this->cObj->enableFields("pages"));
+		$rows = $this->getDatabaseConnection()->exec_SELECTgetRows(
+			'*',
+			'pages',
+			'doktype IN(1,2) AND ' . $anormalSql
+				. ' uid IN (' . $this->getDatabaseConnection()->cleanIntList($tree) . ') AND nav_hide=0 ' . $this->cObj->enableFields('pages')
+		);
 
-		while ($row=mysql_fetch_array($sel,MYSQL_ASSOC)) {
+		foreach ($rows as $row) {
 			$uid=$row['uid'];
 			$freq=$row['tx_mcgooglesitemap_changefreq'];
 			while (($freq == 0) && array_key_exists($uid,$pids)) {
@@ -327,6 +364,13 @@ class tx_mcgooglesitemap_base  {
 		$tmp=explode('.',$url);
 		$tmp[0]=$str;
 		return implode('.',$tmp);
+	}
+
+	/**
+	 * @return t3lib_DB
+	 */
+	protected function getDatabaseConnection() {
+		return $GLOBALS['TYPO3_DB'];
 	}
 }
 
