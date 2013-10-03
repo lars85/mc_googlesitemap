@@ -120,7 +120,7 @@ class tx_mcgooglesitemap_base  {
 
 		$pages=explode(',',$array['pages'] ? $array['pages'] : $GLOBALS['TSFE']->id);
 		foreach ($pages as $page) {
-			$res = $GLOBALS['TYPO3_DB']->sql(TYPO3_db, 'SELECT tt_news.uid,tt_news.tstamp, tt_news_cat.single_pid FROM tt_news LEFT OUTER  JOIN tt_news_cat_mm ON tt_news_cat_mm.uid_local = tt_news.uid LEFT OUTER JOIN tt_news_cat ON tt_news_cat_mm.uid_foreign = tt_news_cat.uid  WHERE tt_news.pid = '.$page.$this->cObj->enableFields("tt_news"));
+			$res = $this->getDatabaseConnection()->sql_query('SELECT tt_news.uid,tt_news.tstamp, tt_news_cat.single_pid FROM tt_news LEFT OUTER JOIN tt_news_cat_mm ON tt_news_cat_mm.uid_local = tt_news.uid LEFT OUTER JOIN tt_news_cat ON tt_news_cat_mm.uid_foreign = tt_news_cat.uid  WHERE tt_news.pid = '.$page.$this->cObj->enableFields("tt_news"));
 
 //	$res = $GLOBALS['TYPO3_DB']->sql(TYPO3_db, 'SELECT  tt_news.uid,tt_news.tstamp, tt_news_cat.single_pid FROM tt_news INNER JOIN tt_news_cat_mm ON tt_news_cat_mm.uid_local = tt_news.uid INNER JOIN tt_news_cat ON tt_news_cat_mm.uid_foreign = tt_news_cat.uid  WHERE tt_news.pid = '.$page.$this->cObj->enableFields("tt_news"));
 			while($row = $GLOBALS['TYPO3_DB']->sql_fetch_assoc($res)) {
@@ -134,6 +134,11 @@ class tx_mcgooglesitemap_base  {
 				if ( ((int)$row['single_pid']*1) != 0 ) {  $this->createElement($tema); }
 				unset($tema);
 			}
+
+			if ($res) {
+				$this->getDatabaseConnection()->sql_free_result($res);
+			}
+
 			print_R($i);
 		}
 	}
