@@ -259,7 +259,7 @@ class tx_mcgooglesitemap_base  {
 			$time=($row['SYS_LASTCHANGED']>$row['tstamp'])?$row['SYS_LASTCHANGED']:$row['tstamp'];
 			$tema['lastmod']=gmdate($this->dateFormat,$time);
 			$tema['page']=$this->elcHash($row['uid'],array(),0);
-			if ( @strpos('http://',$tema['page'])===false ) {
+			if (@strpos($tema['page'], 'http://') === FALSE) {
 				$tema['loc']=htmlspecialchars(utf8_encode($this->baseUrl.$tema['page']));
 			} else {
 				$tema['loc']=htmlspecialchars(utf8_encode($tema['page']));
